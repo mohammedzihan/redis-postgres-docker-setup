@@ -1,46 +1,20 @@
-# ,ulti stage build
-FROM node:18-alpine AS build_stage
-
-# required for ssh and git clone inside npm. dumb-init for process management.
-RUN apk add --update --no-cache openssh git dumb-init
-
-RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan git.bitbucket.org >> ~/.ssh/known_hosts
-
-RUN mkdir -p /app
-
-WORKDIR /app
-
-COPY package.json package.json
-
-# npm install the dependencies (from npm and git)
-RUN --mount=type=ssh npm clean-install
-
-
-
+# Dockerfile
 FROM node:18-alpine
 
-# Set the timezone
-RUN apk add --no-cache tzdata
-ENV TZ=Asia/Kolkata
-
-RUN apk add --update --no-cache chromium
-# Copy dumb-init from build stage
-COPY --from=build_stage /usr/bin/dumb-init /usr/bin/dumb-init
-
-RUN mkdir -p /app
-
-RUN chown node:node /app
-
-# Use the built in 'node' user with lesser previliges.
-USER node
-
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy the /app from build stage
-COPY --chown=node:node --from=build_stage /app /app
+# Copy package.json and package-lock.json to the working directory
+COPY package*.json ./
 
-COPY --chown=node:node . .
+# Install app dependencies
+RUN npm install
 
-EXPOSE 8000
+# Bundle app source
+COPY . .
 
-CMD ["dumb-init", "node", "index.js"]
+# Expose the port your app will run on
+EXPOSE 3000
+
+# Start the entry script
+CMD [ "npm", "run", "dev" ]
